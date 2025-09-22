@@ -1,0 +1,1 @@
+(width (cm), height (cm), label (0-pichu, 1-pikachu))
