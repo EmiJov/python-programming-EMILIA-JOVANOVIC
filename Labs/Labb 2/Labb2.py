@@ -5,8 +5,8 @@ from collections import Counter
 
 # Läs in datapoints (width, height, label)
 
-data_path = "Labs/datapoints.txt"
-test_path = "Labs/testpoints.txt"
+data_path = "Labs/Labb 2/datapoints.txt"
+test_path = "Labs/Labb 2/testpoints.txt"
 
 def load_data_points(data_path):
     points = []
@@ -52,7 +52,7 @@ def plot_data(training_data, test_results):
     plt.title("Pikachu vs Pichu")
     plt.xlabel("Width (cm)")
     plt.ylabel("Height (cm)")
-    plt.grid(True)
+    plt.grid(False)
     plt.text(16.5, 40, "Pikachu = Yellow", fontsize=10)
     plt.text(16.5, 39, "Pichu = Green", fontsize=10)
     plt.text(16.5, 38, "Test point identified Pichu = Orange", fontsize=8)
@@ -72,20 +72,52 @@ def user_input_point():
         except ValueError:
             print("Ange numeriska värden")
 
-# Slumpad tränings/test-split för accuracy
-def compute_accuracy(training_data):
-    random.shuffle(training_data)
-    train = training_data[:100] # 50 Pikachu, 50 Pichu
+# Balanserad split
+def split_balanced(data, n_train_per_class=50, n_test_per_class=25):
+    pikachu = [p for p in data if p[2] == 1]
+    pichu = [p for p in data if p[2] == 0]
 
-    test = training_data[:100:150] # 25 Pikachu, 25 Pichu
+    random.shuffle(pikachu)
+    random.shuffle(pichu)
 
-    correct = 0
-    for x, y, true_label in test:
-        pred = classification_KNN((x, y), train, k=10)
-        if pred == true_label:
-            correct += 1
-    accuracy = correct / len(test)
-    print(f"Accuracy på testdata: {accuracy:.2f}")
+    train = pikachu[:n_train_per_class] + pichu[:n_train_per_class]
+    test = (
+        pikachu[n_train_per_class:n_train_per_class + n_test_per_class]
+        + pichu[n_train_per_class:n_train_per_class + n_test_per_class]
+    )
+
+    random.shuffle(train)
+    random.shuffle(test)
+    return train, test
+
+# Accuracy över 10 körningar + plott
+def compute_accuracy(data, k=10, n_runs=10, n_train_per_class=50, n_test_per_class=25, plot=True):
+    accuracies = []
+
+    for _ in range(n_runs):
+        train, test = split_balanced(data, n_train_per_class, n_test_per_class)
+
+        correct = 0
+        for x, y, true_label in test:
+            pred = classification_KNN((x, y), train, k=k)
+            if pred == true_label:
+                correct += 1
+
+        acc = correct / len(test)
+        accuracies.append(acc)
+
+    if plot:
+        plt.figure()
+        plt.scatter(range(1, n_runs + 1), accuracies, marker="o")
+        plt.ylim(0, 1)
+        plt.title(f"Accuracy över {n_runs} körningar (balanserad, k={k})")
+        plt.xlabel("Körning")
+        plt.ylabel("Accuracy")
+        plt.grid(False)
+        plt.show()
+
+    print(f"Genomsnittlig accuracy över 10 körningar: {np.mean(accuracies):.3f}")
+    return accuracies
 
 # Huvudprogram
 def main():
@@ -107,8 +139,8 @@ def main():
     label_knn_user = classification_KNN(user_point, training_data, k=10)
     print(f"Din testpunkt {user_point} -> 10-NN: {'Pikachu' if label_knn_user else 'Pichu'}")
 
-    # Beräkna enkel accuracy
-    compute_accuracy(training_data)
+    # Accuracy över 10 körningar
+    compute_accuracy(training_data, k=10, n_runs=10, n_train_per_class=50, n_test_per_class=25, plot=True)
 
 if __name__ == "__main__":
     main()
